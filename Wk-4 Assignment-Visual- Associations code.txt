@@ -1,0 +1,351 @@
+ # -*- coding: utf-8 -*-
+"""
+Created on Fri Sep  1 17:37:40 2017
+
+@author: t
+"""
+
+import pandas
+import numpy
+import seaborn
+import matplotlib.pyplot as plt
+
+path =  "C:\\Users\\t\\.spyder-py3\\nesarc.csv" 
+ 
+data = pandas.read_csv("C:\\Users\\t\\.spyder-py3\\nesarc.csv", low_memory=False)
+
+##Setting Pandas to show all columns in dataframes
+pandas.set_option('display.max_columns', None)
+
+##Setting Pandas to show all rows in dataframes, allows all to be display
+pandas.set_option('display.max_rows', None)
+
+# bug fix for display formats to avoid run time errors
+pandas.set_option('display.float_format', lambda x: '%f' %x)
+
+print(len(data))            # Number of observations (rows)
+print(len(data.columns)) #Number of Variables (columns)
+
+ # Setting variables to work as numeric
+data['TAB12MDX'] = data['TAB12MDX'].convert_objects(convert_numeric=True)
+data['CHECK321'] = data['CHECK321'].convert_objects(convert_numeric=True)
+data['S3AQ3B1'] = data['S3AQ3B1'].convert_objects(convert_numeric=True)
+data['S3AQ3C1'] = data['S3AQ3C1'].convert_objects(convert_numeric=True)
+data['S3AQ3B2'] = data['S3AQ3B2'].convert_objects(convert_numeric=True)
+data['CHECK322'] = data['CHECK322'].convert_objects(convert_numeric=True)
+ 
+
+###subset of young adults ages 18 to 25 who had smoked in the last 12 months
+sub1=data[(data['AGE']>=18) & (data['AGE']<=25) & (data['CHECK321']==1)]
+
+sub2 = sub1.copy()
+
+## Labeling missing data:
+## replace  9  responses  with  NaN
+sub2['S3AQ3B1']= sub2['S3AQ3B1'].replace(9,   numpy.nan)
+ 
+ ## replace 99  code responses with NaN 
+sub2['S3AQ3C1'] = sub2['S3AQ3C1'].replace(99,  numpy.nan)
+
+## Recoding to note higher value means more frequent smoking (Usual frequency of smoking)
+recode1 ={1:6, 2:5, 3:4, 4:3, 5:2,6:1}
+## Use the map function to point to the recode1 dictionary
+sub2['USFREQ']= sub2['S3AQ3B1'].map(recode1)
+
+## Recode to capture more qualitative features: estimated cigarettes smoked per month
+## 1 means smoked every day, 2 means 5 to 6 smoked/wk, 3: 3to 4 days/wk; 2/wk is 5 days ,
+##  2.5 is 2 to 3 days/mo ,  1 or less per month is 6+
+recode2 = {1:30, 2:22, 3:14, 4:5, 5:2.5, 6:1}
+sub2['USFREQMO']= sub2['S3AQ3B1'].map(recode2)
+
+## A secondary variable multiplying # of days smoked/month and approx # of cigarettes/day
+sub2['USFREQMO_EST'] = sub2['USFREQMO']*sub2['S3AQ3C1']
+
+# change format from numerical to categorical for graphing using astype
+sub2["TAB12MDX"] = sub2["TAB12MDX"].astype('category')
+
+seaborn.countplot(x="TAB12MDX", data=sub2)
+plt.xlabel('Nicotine Dependence past 12 months')
+plt.title('Nicotine Dependence in the Past 12 Months Among Young Adult Smokers in the NESARC Study')
+
+# Univariate histogram for quantitative variables,  drop missing data 
+seaborn.distplot (sub2["NUMCIGMO_EST"].dropna(), kde=False);
+plt.xlabel('Number of Cigarettes per Month')
+plt.title('Estimated Number of Cigarettes smoked per Month among Young Smokers in the NESARC Study')
+
+#standard deviation and other descriptive statistics for quantitative variables
+print('describe number of cigarettes smoke per month')
+desc1 = sub2['NUMCIGMO_EST'].describe()
+print(desc1)
+
+c1 = sub2.groupby('TAB12MDX').size()
+print(c1)
+
+p1= sub2.groupby('TAB12MDX').size()*100/ len(data)
+print(p1)
+
+c2 = sub2.groupby ('NUMCIGMO_EST').size()
+print(c2)
+
+p2 = sub2.groupby ('NUMCIGMO_EST').size()*100/len(data)
+print(p2)
+ 
+
+
+
+## From below the missing data are not included (count 1706, freq of top value=896)
+## If we had failed to describe the variable as categorical, Python will include 0 and 1 dummies giving std dev of 0.5252 based on 1 and Os + distrib of 25% percent...)
+print('mean')
+mean1 = sub2['NUMCIGMO_EST'].mean()
+print(mean1)
+
+print('std')
+std1 = sub2['NUMCIGMO_EST'].std()
+print(std1)
+
+print('max')
+max1 = sub2['NUMCIGMO_EST'].max()
+print(max1)
+
+print('min')
+min1 = sub2['NUMCIGMO_EST'].min()
+print(min1)
+
+print('median')
+median1 = sub2['NUMCIGMO_EST'].median()
+print(median1)
+
+print('mode')
+mode1 = sub2['NUMCIGMO_EST'].mode()
+print(mode1)
+
+### Associations Python
+# A secondary variable multiplying # of days smoked & approx. # of cig. smoked /day
+sub2['PacksperMonth']*sub2['NUMCIGMO_EST']/20
+
+c2 = sub2.groupby('PacksperMonth').size()
+print(c2)
+
+sub2['Pack Category']*pandas.cut(sub2.PacksperMonth, [0,5,10,20,30,147])
+
+#change format for numeric to categorical
+sub2['Pack Category'] = sub2['Pack Category'].astype('category')
+
+## For categorical data
+print('Describe nicotine dependence')
+desc3 = sub2['Pack Category'].describe()
+print(desc3)
+
+print('Pack Category')
+c7= sub2['Pack Category'].value_counts(sort=False, dropna=True)
+print (c7)
+
+sub2['TAB12MDX'] = sub2['TAB12MDX'].convert_objects(convert_numeric=True)
+
+## Categorical ,  c1 below suppresses error bars that can learned more in stat tools course)
+seaborn.factorplot(x='Pack Category',  y='TAB12MDX', data=sub2, kind="bar", c1=None)
+plt.xlabel('Packs per Month')
+plt.ylabel('Proportion Nicotine Dependence')
+
+
+#### Ethnicity categorical variable introduction
+sub2['SMOKEGRP'] = sub2.apply (lambda row: SMOKEGRP (row), axis=1)
+
+c3 = sub2.groupby('SMOKEGRP').size()
+print(c3)
+
+def DAILY (row):
+    if row['USFREQMO'] == 30 :
+       return 1
+    elif row['USFREMO'] != 30:
+        return 0
+
+sub2['DAILY'] = sub2.apply (lambda row: DAILY (row), axis =1)
+
+c4 =sub2.groupby('DAILY').size()
+print(c4)
+
+#bivariate bar graph C -> C
+seaborn.factorplot(x='ETHRACE2A', y='DAILY', data=sub2, kind="bar", ci=None)
+plt.xlabel('Ethnic Group')
+plt.ylabel('Proportion Daily Smokers')
+
+
+###*******************************************************************8
+
+# -*- coding: utf-8 -*-
+"""
+Created on Fri Sep  1 17:37:40 2017
+
+@author: t
+"""
+
+import pandas
+import numpy
+import seaborn
+import matplotlib.pyplot as plt
+
+path =  "C:\\Users\\t\\.spyder-py3\\nesarc.csv" 
+ 
+data = pandas.read_csv("C:\\Users\\t\\.spyder-py3\\nesarc.csv", low_memory=False)
+
+##Setting Pandas to show all columns in dataframes
+pandas.set_option('display.max_columns', None)
+
+##Setting Pandas to show all rows in dataframes, allows all to be display
+pandas.set_option('display.max_rows', None)
+
+# bug fix for display formats to avoid run time errors
+pandas.set_option('display.float_format', lambda x: '%f' %x)
+
+print(len(data))            # Number of observations (rows)
+print(len(data.columns)) #Number of Variables (columns)
+
+ # Setting variables to work as numeric
+data['TAB12MDX'] = data['TAB12MDX'].convert_objects(convert_numeric=True)
+data['CHECK321'] = data['CHECK321'].convert_objects(convert_numeric=True)
+data['S3AQ3B1'] = data['S3AQ3B1'].convert_objects(convert_numeric=True)
+data['S3AQ3C1'] = data['S3AQ3C1'].convert_objects(convert_numeric=True)
+data['S3AQ3B2'] = data['S3AQ3B2'].convert_objects(convert_numeric=True)
+data['CHECK322'] = data['CHECK322'].convert_objects(convert_numeric=True)
+ 
+
+###subset of young adults ages 18 to 25 who had smoked in the last 12 months
+sub1=data[(data['AGE']>=18) & (data['AGE']<=25) & (data['CHECK321']==1)]
+
+sub2 = sub1.copy()
+
+## Labeling missing data:
+## replace  9  responses  with  NaN
+sub2['S3AQ3B1']= sub2['S3AQ3B1'].replace(9,   numpy.nan)
+ 
+ ## replace 99  code responses with NaN 
+sub2['S3AQ3C1'] = sub2['S3AQ3C1'].replace(99,  numpy.nan)
+
+## Recoding to note higher value means more frequent smoking (Usual frequency of smoking)
+recode1 ={1:6, 2:5, 3:4, 4:3, 5:2,6:1}
+## Use the map function to point to the recode1 dictionary
+sub2['USFREQ']= sub2['S3AQ3B1'].map(recode1)
+
+## Recode to capture more qualitative features: estimated cigarettes smoked per month
+## 1 means smoked every day, 2 means 5 to 6 smoked/wk, 3: 3to 4 days/wk; 2/wk is 5 days ,
+##  2.5 is 2 to 3 days/mo ,  1 or less per month is 6+
+recode2 = {1:30, 2:22, 3:14, 4:5, 5:2.5, 6:1}
+sub2['USFREQMO']= sub2['S3AQ3B1'].map(recode2)
+
+## A secondary variable multiplying # of days smoked/month and approx # of cigarettes/day
+sub2['USFREQMO_EST'] = sub2['USFREQMO']*sub2['S3AQ3C1']
+
+# change format from numerical to categorical for graphing using astype
+sub2["TAB12MDX"] = sub2["TAB12MDX"].astype('category')
+
+seaborn.countplot(x="TAB12MDX", data=sub2)
+plt.xlabel('Nicotine Dependence past 12 months')
+plt.title('Nicotine Dependence in the Past 12 Months Among Young Adult Smokers in the NESARC Study')
+
+# Univariate histogram for quantitative variables,  drop missing data 
+seaborn.distplot (sub2["NUMCIGMO_EST"].dropna(), kde=False);
+plt.xlabel('Number of Cigarettes per Month')
+plt.title('Estimated Number of Cigarettes smoked per Month among Young Smokers in the NESARC Study')
+
+#standard deviation and other descriptive statistics for quantitative variables
+print('describe number of cigarettes smoke per month')
+desc1 = sub2['NUMCIGMO_EST'].describe()
+print(desc1)
+
+c1 = sub2.groupby('TAB12MDX').size()
+print(c1)
+
+p1= sub2.groupby('TAB12MDX').size()*100/ len(data)
+print(p1)
+
+c2 = sub2.groupby ('NUMCIGMO_EST').size()
+print(c2)
+
+p2 = sub2.groupby ('NUMCIGMO_EST').size()*100/len(data)
+print(p2)
+ 
+
+
+
+## From below the missing data are not included (count 1706, freq of top value=896)
+## If we had failed to describe the variable as categorical, Python will include 0 and 1 dummies giving std dev of 0.5252 based on 1 and Os + distrib of 25% percent...)
+print('mean')
+mean1 = sub2['NUMCIGMO_EST'].mean()
+print(mean1)
+
+print('std')
+std1 = sub2['NUMCIGMO_EST'].std()
+print(std1)
+
+print('max')
+max1 = sub2['NUMCIGMO_EST'].max()
+print(max1)
+
+print('min')
+min1 = sub2['NUMCIGMO_EST'].min()
+print(min1)
+
+print('median')
+median1 = sub2['NUMCIGMO_EST'].median()
+print(median1)
+
+print('mode')
+mode1 = sub2['NUMCIGMO_EST'].mode()
+print(mode1)
+
+### Associations Python
+# A secondary variable multiplying # of days smoked & approx. # of cig. smoked /day
+sub2['PacksperMonth']*sub2['NUMCIGMO_EST']/20
+
+c2 = sub2.groupby('PacksperMonth').size()
+print(c2)
+
+sub2['Pack Category']*pandas.cut(sub2.PacksperMonth, [0,5,10,20,30,147])
+
+#chnge format for numeric to categorical
+sub2['Pack Category'] = sub2['Pack Category'].astype('category')
+
+## For categorical data
+print('Describe nicotine dependence')
+desc3 = sub2['Pack Category'].describe()
+print(desc3)
+
+print('Pack Category')
+c7= sub2['Pack Category'].value_counts(sort=False, dropna=True)
+print (c7)
+
+sub2['TAB12MDX'] = sub2['TAB12MDX'].convert_objects(convert_numeric=True)
+
+## Categorical ,  c1 below suppresses error bars that can learned more in stat tools course)
+seaborn.factorplot(x='Pack Category',  y='TAB12MDX', data=sub2, kind="bar", c1=None)
+plt.xlabel('Packs per Month')
+plt.ylabel('Proportion Nicotine Dependence')
+
+
+#### Ethnicity categorical variable introduction
+sub2['SMOKEGRP'] = sub2.apply (lambda row: SMOKEGRP (row), axis=1)
+
+c3 = sub2.groupby('SMOKEGRP').size()
+print(c3)
+
+def DAILY (row):
+    if row['USFREQMO'] == 30 :
+       return 1
+    elif row['USFREMO'] != 30:
+        return 0
+
+sub2['DAILY'] = sub2.apply (lambda row: DAILY (row), axis =1)
+
+c4 =sub2.groupby('DAILY').size()
+print(c4)
+
+#bivariate bar graph C -> C
+seaborn.factorplot(x='ETHRACE2A', y='DAILY', data=sub2, kind="bar", ci=None)
+plt.xlabel('Ethnic Group')
+plt.ylabel('Proportion Daily Smokers')
+
+
+#####HOLDER:
+sub3['PACKPERMONTH']= sub3['PACKPERMONTH'].convert_objects(convert_numeric=True)
+
